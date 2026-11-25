@@ -1,0 +1,54 @@
+name: 데이터 갱신 및 배포
+
+on:
+  schedule:
+    - cron: "17 19 * * *" # 매일 한국시간 새벽 4시 17분
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 병의원 데이터 수집
+        if: github.event_name != 'push'
+        env:
+          HIRA_SERVICE_KEY: ${{ secrets.HIRA_SERVICE_KEY }}
+        run: node collector/collect.mjs
+
+      - name: 수집 결과 저장(커밋)
+        if: github.event_name != 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/clinics.json
+          git diff --cached --quiet || (git commit -m "데이터 갱신 $(date -u +%F)" && git push)
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

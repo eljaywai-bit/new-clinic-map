@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>우리동네 신규 개원 병의원</title>
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>우리동네 <em>신규 개원</em> 병의원</h1>
+    <div class="controls">
+      <label><span class="lbl">반경</span>
+        <select id="radius">
+          <option value="1000">1km</option>
+          <option value="3000" selected>3km</option>
+          <option value="5000">5km</option>
+        </select>
+      </label>
+      <label><span class="lbl">정렬</span>
+        <select id="sort">
+          <option value="dist" selected>가까운 순</option>
+          <option value="date">최근 개원 순</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="map-wrap">
+      <div id="map" aria-label="지도"></div>
+      <div class="map-buttons">
+        <button id="btn-here" type="button">이 지역에서 찾기</button>
+        <button id="btn-me" type="button" title="내 위치로">◎ 내 위치</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="dot new"></i>3개월 이내</span>
+        <span><i class="dot old"></i>3~12개월</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div id="notice" class="notice" hidden></div>
+      <div id="summary" class="summary">위치를 확인하는 중…</div>
+      <ol id="list" class="list"></ol>
+      <footer class="foot" id="foot"></footer>
+    </section>
+  </main>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

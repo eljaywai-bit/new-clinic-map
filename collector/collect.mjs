@@ -17,7 +17,7 @@ const ENDPOINT =
 const SERVICE_KEY = process.env.HIRA_SERVICE_KEY;
 const ROWS = Number(process.env.ROWS_PER_PAGE || 1000);
 
-// 종별코드(clCd). 한의원(93)은 제외. 약국은 이 API에 포함되지 않음.
+// 종별코드(clCd). 한방병원(92)·한의원(93)은 제외. 약국은 이 API에 포함되지 않음.
 const CLASS_CODES = {
   "01": "상급종합병원",
   "11": "종합병원",
@@ -32,7 +32,6 @@ const CLASS_CODES = {
   "72": "보건지소",
   "73": "보건진료소",
   "75": "보건의료원",
-  "92": "한방병원",
 };
 
 // 화면에서는 12개월까지만 보이지만, 데이터 갱신이 하루 이틀 밀려도

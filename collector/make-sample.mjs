@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), "../site/data/clinics.json");
-const types = ["의원", "의원", "의원", "치과의원", "병원", "요양병원", "한방병원"];
+const types = ["의원", "의원", "의원", "치과의원", "병원", "요양병원"];
 const center = { lat: 37.5663, lng: 126.9779 }; // 서울시청
 
 let seed = 7;

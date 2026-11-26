@@ -77,6 +77,12 @@ button, select { font: inherit; }
   .grip { display: block; width: 40px; height: 5px; border-radius: 3px; background: #d0d5dd; margin: 0 auto; }
   .summary { padding-top: 10px; }
   .map-wrap .legend { top: 58px; bottom: auto; }
+  /* 필터 두 줄: 1줄 기간, 2줄 진료과(옆으로 넘기기) */
+  .filters { flex-direction: column; align-items: stretch; gap: 8px; overflow: visible; }
+  .seg { display: flex; }
+  .seg button { flex: 1; }
+  .chips { overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px; }
+  .chips::-webkit-scrollbar { display: none; }
 }
 
 /* 지도 위 버튼 */

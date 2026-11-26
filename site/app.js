@@ -199,6 +199,7 @@
     const b = document.createElement("button");
     b.type = "button"; b.className = "chip"; b.style.setProperty("--c", g.color);
     b.setAttribute("aria-pressed", "true");
+    b.title = g.desc;
     const dot = document.createElement("i");
     const lbl = document.createElement("span"); lbl.textContent = g.label;
     const cnt = document.createElement("span"); cnt.className = "cnt";

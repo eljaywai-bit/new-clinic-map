@@ -28,7 +28,16 @@
     </div>
   </header>
 
-  <main class="layout">
+  <nav class="filters" aria-label="필터">
+    <div class="seg" id="period" role="group" aria-label="개원 기간">
+      <button type="button" data-m="3">~3개월</button>
+      <button type="button" data-m="6">~6개월</button>
+      <button type="button" data-m="12" class="on">~12개월</button>
+    </div>
+    <div class="chips" id="groups" role="group" aria-label="진료과"></div>
+  </nav>
+
+  <main class="layout" id="layout">
     <section class="map-wrap">
       <div id="map" aria-label="지도"></div>
       <div class="map-buttons">
@@ -37,19 +46,25 @@
       </div>
       <div class="legend" aria-hidden="true">
         <span><i class="dot new"></i>3개월 이내</span>
-        <span><i class="dot old"></i>3~12개월</span>
+        <span><i class="dot old"></i>3개월 이후</span>
       </div>
     </section>
 
-    <section class="panel">
-      <div id="notice" class="notice" hidden></div>
-      <div id="summary" class="summary">위치를 확인하는 중…</div>
-      <ol id="list" class="list"></ol>
-      <footer class="foot" id="foot"></footer>
+    <section class="panel" id="sheet">
+      <div class="sheet-head" id="sheet-head">
+        <span class="grip" aria-hidden="true"></span>
+        <div id="summary" class="summary">위치를 확인하는 중…</div>
+      </div>
+      <div class="sheet-body" id="sheet-body">
+        <div id="notice" class="notice" hidden></div>
+        <ol id="list" class="list"></ol>
+        <footer class="foot" id="foot"></footer>
+      </div>
     </section>
   </main>
 
   <script src="config.js"></script>
+  <script src="classify.js"></script>
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="map-leaflet.js"></script>
   <script src="map-kakao.js"></script>

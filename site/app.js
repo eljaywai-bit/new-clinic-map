@@ -16,6 +16,11 @@
   let center = null;      // 검색 기준점
   let myPos = null;       // 실제 내 위치(있을 때만)
   let activeId = null;
+  let periodMonths = 12;  // 개원 기간 필터
+  const { GROUPS, classify } = window.Classify;
+  const GROUP_BY_ID = Object.fromEntries(GROUPS.map((g) => [g.id, g]));
+  const groupOn = new Set(GROUPS.map((g) => g.id)); // 진료과 필터
+  const isMobile = () => window.matchMedia("(max-width: 859px)").matches;
 
   // ---------- 날짜 ----------
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -67,7 +72,7 @@
     box.className = "pop";
     const t = document.createElement("div"); t.className = "t"; t.textContent = it.n;
     const s = document.createElement("div"); s.className = "s";
-    s.textContent = `${it.t} · ${fmtDate(it.date)} 개원 (${ago(it.date)})`;
+    s.textContent = `${it.s}${it.s === it.t ? "" : ` · ${it.t}`} · ${fmtDate(it.date)} 개원 (${ago(it.date)})`;
     const a = document.createElement("div"); a.textContent = it.a;
     const links = document.createElement("div"); links.className = "links";
     if (it.p) {
@@ -88,11 +93,18 @@
     const radius = Number(radiusSel.value);
     mapApi.setRadius(center, radius);
 
+    // 반경 + 기간으로 1차 필터 → 진료과별 개수 집계 → 진료과 필터
+    const since = monthsAgo(periodMonths);
+    const counts = Object.fromEntries(GROUPS.map((g) => [g.id, 0]));
     const near = [];
     for (const it of data) {
+      if (it.date < since) continue;
       const dist = distance(center, { lat: it.y, lng: it.x });
-      if (dist <= radius) near.push({ ...it, dist });
+      if (dist > radius) continue;
+      counts[it.g]++;
+      if (groupOn.has(it.g)) near.push({ ...it, dist });
     }
+    updateChips(counts);
     const byDist = (a, b) => a.dist - b.dist;
     const byDate = (a, b) => b.date - a.date || a.dist - b.dist;
     const sorter = sortSel.value === "date" ? byDate : byDist;
@@ -106,15 +118,17 @@
     summaryEl.innerHTML = "";
     const label = center === myPos ? "내 위치" : "선택한 지역";
     summaryEl.append(
-      `${label} ${radius / 1000}km 안 · 신규 `, strong(`${fresh.length}곳`, "n"),
-      ` · 3~12개월 `, strong(`${older.length}곳`)
+      `${label} ${radius / 1000}km · ${periodMonths}개월 이내 `, strong(`${near.length}곳`),
+      ` (신규 `, strong(`${fresh.length}`, "n"), `)`
     );
 
     listEl.innerHTML = "";
     if (!near.length) {
       const li = document.createElement("li");
       li.className = "empty";
-      li.textContent = "최근 12개월 안에 개원한 병의원이 없어요. 반경을 넓혀 보세요.";
+      li.textContent = groupOn.size
+        ? `최근 ${periodMonths}개월 안에 개원한 곳이 없어요. 반경이나 기간을 넓혀 보세요.`
+        : "진료과를 하나 이상 선택해 주세요.";
       listEl.append(li);
       return;
     }
@@ -122,12 +136,13 @@
     if (older.length) {
       const d = document.createElement("li");
       d.className = "divider";
-      d.textContent = `개원 3~12개월 (${older.length})`;
+      d.textContent = `개원 3~${periodMonths}개월 (${older.length})`;
       listEl.append(d);
       older.forEach((it) => listEl.append(itemNode(it)));
     }
   }
 
+  function tag(text) { const t = document.createElement("span"); t.className = "tag"; t.textContent = text; return t; }
   function strong(text, cls) { const b = document.createElement("b"); if (cls) b.className = cls; b.textContent = text; return b; }
 
   function itemNode(it) {
@@ -137,10 +152,13 @@
     li.tabIndex = 0;
 
     const row1 = document.createElement("div"); row1.className = "row1";
+    const gdot = document.createElement("span"); gdot.className = "gdot"; gdot.style.setProperty("--c", it.color);
+    gdot.title = GROUP_BY_ID[it.g].label;
+    row1.append(gdot);
     if (it.isNew) { const b = document.createElement("span"); b.className = "badge"; b.textContent = "NEW"; row1.append(b); }
     const name = document.createElement("span"); name.className = "name"; name.textContent = it.n;
-    const type = document.createElement("span"); type.className = "type"; type.textContent = it.t;
-    row1.append(name, type);
+    row1.append(name, tag(it.s));
+    if (it.t !== it.s && it.t !== "의원" && it.t !== "치과의원") row1.append(tag(it.t));
 
     const meta = document.createElement("div"); meta.className = "meta";
     const when = document.createElement("span"); when.className = "when"; when.textContent = ago(it.date);
@@ -152,9 +170,9 @@
     li.append(row1, meta, addr);
 
     const open = () => {
+      if (isMobile()) setSheet("peek"); // 목록을 내려서 지도가 보이게
       mapApi.focus(it.id);
       highlight(it.id, false);
-      if (window.matchMedia("(max-width: 859px)").matches) window.scrollTo({ top: 0, behavior: "smooth" });
     };
     li.addEventListener("click", open);
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
@@ -171,8 +189,81 @@
   function searchAt(pos, fit = true) {
     center = pos;
     render();
-    if (fit) mapApi.fitRadius(center, Number(radiusSel.value));
+    // 모바일은 아래쪽을 목록이 가리므로 그만큼 여백을 두고 맞춤
+    if (fit) mapApi.fitRadius(center, Number(radiusSel.value), isMobile() ? snapHeights()[sheetState] : 0);
   }
+
+  // ---------- 필터 ----------
+  const chipEls = {};
+  for (const g of GROUPS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.style.setProperty("--c", g.color);
+    b.setAttribute("aria-pressed", "true");
+    const dot = document.createElement("i");
+    const lbl = document.createElement("span"); lbl.textContent = g.label;
+    const cnt = document.createElement("span"); cnt.className = "cnt";
+    b.append(dot, lbl, cnt);
+    b.addEventListener("click", () => {
+      if (groupOn.has(g.id)) groupOn.delete(g.id); else groupOn.add(g.id);
+      b.classList.toggle("off", !groupOn.has(g.id));
+      b.setAttribute("aria-pressed", String(groupOn.has(g.id)));
+      render();
+    });
+    $("groups").append(b);
+    chipEls[g.id] = cnt;
+  }
+  function updateChips(counts) { for (const g of GROUPS) chipEls[g.id].textContent = counts[g.id]; }
+
+  $("period").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-m]");
+    if (!b) return;
+    periodMonths = Number(b.dataset.m);
+    for (const x of $("period").children) x.classList.toggle("on", x === b);
+    render();
+  });
+
+  // ---------- 모바일 목록 시트 (끌어서 올리고 내리기) ----------
+  const sheet = $("sheet");
+  const head = $("sheet-head");
+  let sheetState = "half";
+  function snapHeights() {
+    const H = $("layout").clientHeight;
+    return { peek: head.offsetHeight, half: Math.round(H * 0.45), full: Math.round(H * 0.92) };
+  }
+  function setSheet(state) {
+    sheetState = state;
+    sheet.style.setProperty("--sheet-h", `${snapHeights()[state]}px`);
+  }
+  let drag = null;
+  head.addEventListener("pointerdown", (e) => {
+    if (!isMobile()) return;
+    drag = { y: e.clientY, h: sheet.offsetHeight, moved: false };
+    head.setPointerCapture(e.pointerId);
+    sheet.classList.add("dragging");
+  });
+  head.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dy = drag.y - e.clientY;
+    if (Math.abs(dy) > 4) drag.moved = true;
+    const { peek, full } = snapHeights();
+    sheet.style.setProperty("--sheet-h", `${Math.max(peek, Math.min(full, drag.h + dy))}px`);
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    sheet.classList.remove("dragging");
+    if (!drag.moved) {
+      setSheet(sheetState === "peek" ? "half" : sheetState === "half" ? "full" : "peek"); // 탭하면 단계 전환
+    } else {
+      const h = sheet.offsetHeight, snaps = snapHeights();
+      const best = Object.entries(snaps).sort((a, b) => Math.abs(a[1] - h) - Math.abs(b[1] - h))[0][0];
+      setSheet(best);
+    }
+    drag = null;
+  };
+  head.addEventListener("pointerup", endDrag);
+  head.addEventListener("pointercancel", endDrag);
+  window.addEventListener("resize", () => { if (isMobile()) setSheet(sheetState); });
+  if (isMobile()) setSheet("half");
 
   // ---------- 위치 ----------
   function showNotice(msg) { noticeEl.textContent = msg; noticeEl.hidden = !msg; }
@@ -214,7 +305,11 @@
       mapApi = api;
       document.body.dataset.map = api.name;
       data = json.items
-        .map((it) => { const date = parseYmd(it.d); return { ...it, date, isNew: date >= NEW_CUTOFF }; })
+        .map((it) => {
+          const date = parseYmd(it.d);
+          const { g, s } = classify(it.n, it.t);
+          return { ...it, date, isNew: date >= NEW_CUTOFF, g, s, color: GROUP_BY_ID[g].color };
+        })
         .filter((it) => it.date >= SHOW_CUTOFF && it.date <= today);
       const upd = new Date(json.updatedAt);
       $("foot").textContent =

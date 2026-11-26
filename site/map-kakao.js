@@ -18,7 +18,7 @@ window.MapProviders.kakao = function createKakaoMap(el, opts) {
     const K = kakao.maps;
     const LL = (p) => new K.LatLng(p.lat, p.lng);
     const map = new K.Map(el, { center: LL(opts.center), level: 5 });
-    map.addControl(new K.ZoomControl(), K.ControlPosition.BOTTOMRIGHT);
+    map.addControl(new K.ZoomControl(), K.ControlPosition.RIGHT);
     window.addEventListener("resize", () => map.relayout());
 
     const circle = new K.Circle({
@@ -55,13 +55,13 @@ window.MapProviders.kakao = function createKakaoMap(el, opts) {
       name: "kakao",
       getCenter() { const c = map.getCenter(); return { lat: c.getLat(), lng: c.getLng() }; },
       setRadius(center, radius) { circle.setPosition(LL(center)); circle.setRadius(radius); },
-      fitRadius(center, radius) {
+      fitRadius(center, radius, padBottom = 0) {
         const dLat = radius / 111320;
         const dLng = radius / (111320 * Math.cos((center.lat * Math.PI) / 180));
         map.setBounds(new K.LatLngBounds(
           LL({ lat: center.lat - dLat, lng: center.lng - dLng }),
           LL({ lat: center.lat + dLat, lng: center.lng + dLng })
-        ), 10, 10, 10, 10);
+        ), 10, 10, 10 + padBottom, 10);
       },
       setMe(pos) { me.setPosition(LL(pos)); me.setMap(map); },
       setMarkers(items, onClick) {
@@ -71,6 +71,7 @@ window.MapProviders.kakao = function createKakaoMap(el, opts) {
         for (const it of items) {
           const dot = document.createElement("div");
           dot.className = `kdot ${it.isNew ? "new" : "old"}`;
+          dot.style.setProperty("--c", it.color);
           dot.title = it.n;
           dot.addEventListener("click", (e) => { e.stopPropagation(); openPopup(it); onClick(it.id); });
           const ov = new K.CustomOverlay({

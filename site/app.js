@@ -15,7 +15,6 @@
   let data = [];
   let center = null;      // 검색 기준점
   let myPos = null;       // 실제 내 위치(있을 때만)
-  let markers = new Map(); // id -> marker
   let activeId = null;
 
   // ---------- 날짜 ----------
@@ -41,28 +40,28 @@
   }
   const fmtDist = (m) => (m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(1)}km`);
 
-  // ---------- 지도 ----------
-  const map = L.map("map", { zoomControl: false, attributionControl: true })
-    .setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 14);
-  L.control.zoom({ position: "bottomright" }).addTo(map);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  }).addTo(map);
+  // ---------- 지도 (config.js 의 mapProvider 로 선택) ----------
+  const CFG = window.APP_CONFIG || {};
+  let mapApi = null;
+  const mapOpts = { center: DEFAULT_CENTER, kakaoJsKey: CFG.kakaoJsKey, popupContent: (it) => popupNode(it) };
 
-  const oldLayer = L.layerGroup().addTo(map);
-  const newLayer = L.layerGroup().addTo(map); // 신규가 위에 그려지도록 나중에 추가
-  const radiusCircle = L.circle([0, 0], {
-    radius: 3000, color: "#1d2430", weight: 1, opacity: 0.35, fillOpacity: 0.03, dashArray: "4 4", interactive: false,
-  }).addTo(map);
-  const meMarker = L.marker([0, 0], {
-    icon: L.divIcon({ className: "", html: '<div class="me-dot"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }),
-    interactive: false, keyboard: false,
-  });
+  function withTimeout(p, ms) {
+    return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("지도 로딩 시간 초과")), ms))]);
+  }
+  async function initMap() {
+    const el = $("map");
+    const want = CFG.mapProvider || "leaflet";
+    if (want !== "leaflet" && window.MapProviders[want]) {
+      try { return await withTimeout(window.MapProviders[want](el, mapOpts), 8000); }
+      catch (e) {
+        console.warn(`[지도] ${want} 실패, OpenStreetMap 으로 대체:`, e.message);
+        el.innerHTML = "";
+      }
+    }
+    return window.MapProviders.leaflet(el, mapOpts);
+  }
 
-  const STYLE_NEW = { radius: 9, color: "#fff", weight: 2, fillColor: "#e8590c", fillOpacity: 1 };
-  const STYLE_OLD = { radius: 7, color: "#7c8a9a", weight: 1, opacity: 0.6, fillColor: "#7c8a9a", fillOpacity: 0.35 };
-
+  // ---------- 팝업 내용 (지도 회사와 무관) ----------
   function popupNode(it) {
     const box = document.createElement("div");
     box.className = "pop";
@@ -87,7 +86,7 @@
   function render() {
     if (!center) return;
     const radius = Number(radiusSel.value);
-    radiusCircle.setLatLng([center.lat, center.lng]).setRadius(radius);
+    mapApi.setRadius(center, radius);
 
     const near = [];
     for (const it of data) {
@@ -100,15 +99,8 @@
     const fresh = near.filter((i) => i.isNew).sort(sorter);
     const older = near.filter((i) => !i.isNew).sort(sorter);
 
-    // 지도 마커
-    oldLayer.clearLayers(); newLayer.clearLayers(); markers.clear();
-    for (const it of [...older, ...fresh]) {
-      const m = L.circleMarker([it.y, it.x], it.isNew ? STYLE_NEW : STYLE_OLD)
-        .bindPopup(() => popupNode(it), { maxWidth: 260 })
-        .on("click", () => highlight(it.id, true));
-      (it.isNew ? newLayer : oldLayer).addLayer(m);
-      markers.set(it.id, m);
-    }
+    // 지도 마커 (오래된 것 먼저 → 신규가 위에 그려짐)
+    mapApi.setMarkers([...older, ...fresh], (id) => highlight(id, true));
 
     // 목록
     summaryEl.innerHTML = "";
@@ -160,10 +152,7 @@
     li.append(row1, meta, addr);
 
     const open = () => {
-      const m = markers.get(it.id);
-      if (!m) return;
-      map.setView(m.getLatLng(), Math.max(map.getZoom(), 16));
-      m.openPopup();
+      mapApi.focus(it.id);
       highlight(it.id, false);
       if (window.matchMedia("(max-width: 859px)").matches) window.scrollTo({ top: 0, behavior: "smooth" });
     };
@@ -182,7 +171,7 @@
   function searchAt(pos, fit = true) {
     center = pos;
     render();
-    if (fit) map.fitBounds(radiusCircle.getBounds(), { padding: [10, 10] });
+    if (fit) mapApi.fitRadius(center, Number(radiusSel.value));
   }
 
   // ---------- 위치 ----------
@@ -197,7 +186,7 @@
     navigator.geolocation.getCurrentPosition(
       (p) => {
         myPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-        meMarker.setLatLng([myPos.lat, myPos.lng]).addTo(map);
+        mapApi.setMe(myPos);
         showNotice("");
         searchAt(myPos);
       },
@@ -211,16 +200,19 @@
 
   $("btn-me").addEventListener("click", locate);
   $("btn-here").addEventListener("click", () => {
-    const c = map.getCenter();
-    searchAt({ lat: c.lat, lng: c.lng });
+    searchAt(mapApi.getCenter());
   });
   radiusSel.addEventListener("change", () => searchAt(center));
   sortSel.addEventListener("change", render);
 
-  // ---------- 데이터 ----------
-  fetch("data/clinics.json", { cache: "no-cache" })
-    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then((json) => {
+  // ---------- 데이터 + 지도 로딩 ----------
+  const dataP = fetch("data/clinics.json", { cache: "no-cache" })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+
+  Promise.all([dataP, initMap()])
+    .then(([json, api]) => {
+      mapApi = api;
+      document.body.dataset.map = api.name;
       data = json.items
         .map((it) => { const date = parseYmd(it.d); return { ...it, date, isNew: date >= NEW_CUTOFF }; })
         .filter((it) => it.date >= SHOW_CUTOFF && it.date <= today);
@@ -231,5 +223,5 @@
         `개설일자 기준이며 실제 개원일·이전 개원 여부와 다를 수 있습니다. 한방병원·한의원은 제외됩니다.`;
       locate();
     })
-    .catch(() => { summaryEl.textContent = "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."; });
+    .catch((e) => { console.error(e); summaryEl.textContent = "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."; });
 })();

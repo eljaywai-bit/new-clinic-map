@@ -39,7 +39,7 @@ button, select { font: inherit; }
 /* 레이아웃: 모바일은 지도 위 / 목록 아래, 데스크톱은 목록 왼쪽 */
 .layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .map-wrap { position: relative; height: 46vh; flex: none; }
-#map { position: absolute; inset: 0; background: #e9edf1; }
+#map { position: absolute; inset: 0; z-index: 0; background: #e9edf1; }
 .panel { flex: 1; overflow-y: auto; background: #fff; -webkit-overflow-scrolling: touch; }
 
 @media (min-width: 860px) {
@@ -117,3 +117,18 @@ button, select { font: inherit; }
   .controls .lbl { display: none; }
   .controls select { padding: 5px 4px; font-size: 13px; }
 }
+
+/* 카카오맵 마커·팝업 */
+.kdot { border-radius: 50%; cursor: pointer; }
+.kdot.new { width: 18px; height: 18px; background: var(--new); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.kdot.old { width: 13px; height: 13px; background: rgba(124,138,154,.35); border: 1px solid rgba(124,138,154,.6); }
+.kpop {
+  position: relative; margin-bottom: 14px; width: 250px; padding: 12px 14px;
+  background: #fff; border-radius: 10px; box-shadow: 0 3px 14px rgba(0,0,0,.25);
+  font-size: 13px; line-height: 1.45; white-space: normal;
+}
+.kpop::after {
+  content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -8px;
+  border: 8px solid transparent; border-bottom: 0; border-top-color: #fff;
+}
+.kpop-close { position: absolute; top: 4px; right: 6px; border: 0; background: none; font-size: 18px; color: #98a2b3; cursor: pointer; }

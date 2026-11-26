@@ -15,6 +15,9 @@
 collector/collect.mjs     매일 심평원 API에서 전국 병의원을 받아 최근 개원(약 12개월)만 저장
 collector/make-sample.mjs 화면 확인용 가짜 데이터 생성
 site/                     정적 웹페이지 (서버 불필요)
+  config.js               지도 회사 선택과 지도 키 (지도를 바꿀 때 이 파일만 수정)
+  map-kakao.js            카카오맵 연결
+  map-leaflet.js          OpenStreetMap 연결 (카카오맵을 못 불러올 때 대체용)
   data/clinics.json       수집 결과 (현재는 샘플 데이터)
 .github/workflows/update.yml  매일 새벽 자동 수집 → GitHub Pages 배포
 ```
@@ -44,6 +47,10 @@ python3 -m http.server 8000 -d site                     # http://localhost:8000
 
 - 개원 기준은 심평원 **개설일자**입니다. 다른 곳에서 이전해 온 병원도 신규로 보일 수 있고,
   실제 개원과 데이터 반영 사이에 몇 주 정도 시차가 있을 수 있습니다.
-- 지도는 OpenStreetMap을 씁니다. 이용자가 많아지면 카카오맵이나 VWorld로 바꾸는 것을 권장합니다.
+- 지도는 카카오맵을 씁니다. 카카오 개발자 사이트의 **JavaScript SDK 도메인**에 사이트 주소가
+  등록되어 있어야 합니다(`http://localhost:8000`, `https://아이디.github.io`). 카카오맵을 불러오지
+  못하면 자동으로 OpenStreetMap 지도로 대신 보여줍니다.
+- 네이버지도로 바꾸려면 `map-kakao.js`와 같은 형태의 `map-naver.js`를 추가하고
+  `config.js`의 `mapProvider`를 바꾸면 됩니다.
 - 앱으로 발전시킬 때는 `site/`를 그대로 감싸는 방식(Capacitor 등)이나,
   `clinics.json`을 데이터 API로 재사용하는 방식이 모두 가능합니다.

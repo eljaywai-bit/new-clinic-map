@@ -5,5 +5,5 @@
 //    등록한 도메인에서만 동작합니다.
 window.APP_CONFIG = {
   mapProvider: "kakao",
-  kakaoJsKey: "762647dc64eb3899e882c596b67ea75a",
+  kakaoJsKey: "86fd8edd2a99ae626c8d84cfacbcc6cf",
 };

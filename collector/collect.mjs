@@ -55,7 +55,9 @@ async function fetchPage(clCd, pageNo) {
   });
   const url = `${ENDPOINT}?${params}`;
 
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  // 심평원 서버가 붐비면 "API 오류 99 (ResourceLimitException)"를 자주 돌려줌 → 넉넉히 재시도
+  const MAX_ATTEMPTS = 8;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
       const text = await res.text();
@@ -76,9 +78,9 @@ async function fetchPage(clCd, pageNo) {
       if (!Array.isArray(items)) items = [items];
       return { items, totalCount: Number(body?.totalCount || 0) };
     } catch (err) {
-      if (attempt === 4) throw err;
-      const wait = 2000 * 2 ** (attempt - 1);
-      console.warn(`  재시도 ${attempt}/3 (${wait / 1000}s 후): ${err.message}`);
+      if (attempt === MAX_ATTEMPTS) throw err;
+      const wait = Math.min(5000 * 2 ** (attempt - 1), 60_000); // 5s,10s,20s,40s,60s…
+      console.warn(`  재시도 ${attempt}/${MAX_ATTEMPTS - 1} (${wait / 1000}s 후): ${err.message.slice(0, 120)}`);
       await sleep(wait);
     }
   }

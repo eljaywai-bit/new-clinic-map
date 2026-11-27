@@ -22,6 +22,11 @@
   const groupOn = new Set(GROUPS.map((g) => g.id)); // 진료과 필터
   const isMobile = () => window.matchMedia("(max-width: 859px)").matches;
 
+  // ---------- 사용 통계 (기능별 사용 횟수만 기록, 위치·개인정보는 보내지 않음) ----------
+  function track(name, title) {
+    try { window.goatcounter?.count?.({ path: `evt/${name}`, title: title || name, event: true }); } catch {}
+  }
+
   // ---------- 날짜 ----------
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const monthsAgo = (m) => { const d = new Date(today); d.setMonth(d.getMonth() - m); return d; };
@@ -77,11 +82,13 @@
     const links = document.createElement("div"); links.className = "links";
     if (it.p) {
       const tel = document.createElement("a"); tel.href = `tel:${it.p.replace(/[^0-9+]/g, "")}`; tel.textContent = `☎ ${it.p}`;
+      tel.addEventListener("click", () => track("call", "전화 걸기"));
       links.append(tel);
     }
     const route = document.createElement("a");
     route.href = `https://map.kakao.com/link/to/${encodeURIComponent(it.n)},${it.y},${it.x}`;
     route.target = "_blank"; route.rel = "noopener"; route.textContent = "길찾기";
+    route.addEventListener("click", () => track("route", "길찾기"));
     links.append(route);
     box.append(t, s, a, links);
     return box;
@@ -112,7 +119,7 @@
     const older = near.filter((i) => !i.isNew).sort(sorter);
 
     // 지도 마커 (오래된 것 먼저 → 신규가 위에 그려짐)
-    mapApi.setMarkers([...older, ...fresh], (id) => highlight(id, true));
+    mapApi.setMarkers([...older, ...fresh], (id) => { highlight(id, true); track("marker-click", "지도 마커 클릭"); });
 
     // 목록
     summaryEl.innerHTML = "";
@@ -170,6 +177,7 @@
     li.append(row1, meta, addr);
 
     const open = () => {
+      track("list-click", "목록에서 병원 선택");
       if (isMobile()) setSheet("peek"); // 목록을 내려서 지도가 보이게
       mapApi.focus(it.id);
       highlight(it.id, false);
@@ -208,6 +216,7 @@
       if (groupOn.has(g.id)) groupOn.delete(g.id); else groupOn.add(g.id);
       b.classList.toggle("off", !groupOn.has(g.id));
       b.setAttribute("aria-pressed", String(groupOn.has(g.id)));
+      track("filter-group", "진료과 필터");
       render();
     });
     $("groups").append(b);
@@ -220,6 +229,7 @@
     if (!b) return;
     periodMonths = Number(b.dataset.m);
     for (const x of $("period").children) x.classList.toggle("on", x === b);
+    track(`period-${periodMonths}`, `기간 필터 ${periodMonths}개월`);
     render();
   });
 
@@ -278,11 +288,13 @@
     navigator.geolocation.getCurrentPosition(
       (p) => {
         myPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+        track("locate-ok", "내 위치로 찾기 (위치 허용)");
         mapApi.setMe(myPos);
         showNotice("");
         searchAt(myPos);
       },
       () => {
+        track("locate-denied", "위치 권한 거부/실패");
         showNotice(`위치 권한이 없어 ${DEFAULT_CENTER.label} 기준으로 보여드려요. 브라우저에서 위치 권한을 허용하거나, 지도를 옮긴 뒤 '이 지역에서 찾기'를 눌러보세요.`);
         if (!center) searchAt(DEFAULT_CENTER);
       },
@@ -292,9 +304,10 @@
 
   $("btn-me").addEventListener("click", locate);
   $("btn-here").addEventListener("click", () => {
+    track("search-here", "이 지역에서 찾기");
     searchAt(mapApi.getCenter());
   });
-  radiusSel.addEventListener("change", () => searchAt(center));
+  radiusSel.addEventListener("change", () => { track(`radius-${radiusSel.value / 1000}km`, `반경 ${radiusSel.value / 1000}km`); searchAt(center); });
   sortSel.addEventListener("change", render);
 
   // ---------- 데이터 + 지도 로딩 ----------

@@ -53,7 +53,7 @@
   // ---------- 지도 (config.js 의 mapProvider 로 선택) ----------
   const CFG = window.APP_CONFIG || {};
   let mapApi = null;
-  const mapOpts = { center: DEFAULT_CENTER, kakaoJsKey: CFG.kakaoJsKey, popupContent: (it) => popupNode(it) };
+  const mapOpts = { center: DEFAULT_CENTER, kakaoJsKey: CFG.kakaoJsKey, naverClientId: CFG.naverClientId, popupContent: (it) => popupNode(it) };
 
   function withTimeout(p, ms) {
     return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("지도 로딩 시간 초과")), ms))]);
@@ -86,7 +86,10 @@
       links.append(tel);
     }
     const route = document.createElement("a");
-    route.href = `https://map.kakao.com/link/to/${encodeURIComponent(it.n)},${it.y},${it.x}`;
+    // 길찾기: 네이버 지도를 쓰면 네이버지도, 아니면 카카오맵으로 연결
+    route.href = (mapApi?.name || CFG.mapProvider) === "naver"
+      ? `https://map.naver.com/p/search/${encodeURIComponent(it.n)}`
+      : `https://map.kakao.com/link/to/${encodeURIComponent(it.n)},${it.y},${it.x}`;
     route.target = "_blank"; route.rel = "noopener"; route.textContent = "길찾기";
     route.addEventListener("click", () => track("route", "길찾기"));
     links.append(route);

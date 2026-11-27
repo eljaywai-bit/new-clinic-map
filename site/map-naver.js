@@ -3,13 +3,20 @@ window.MapProviders = window.MapProviders || {};
 window.MapProviders.naver = function createNaverMap(el, opts) {
   return new Promise((resolve, reject) => {
     // 인증 실패(키 오류·도메인 미등록) 시 네이버가 이 함수를 호출함
-    window.navermap_authFailure = () => reject(new Error("네이버지도 인증 실패 (Client ID·서비스 URL 확인)"));
+    window.navermap_authFailure = () => {
+      console.error("[지도] 네이버지도 인증 실패: 네이버클라우드 Maps 의 Client ID·Web 서비스 URL·Dynamic Map 선택을 확인하세요.");
+      reject(new Error("네이버지도 인증 실패"));
+    };
     const s = document.createElement("script");
     s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(opts.naverClientId)}`;
     s.onerror = () => reject(new Error("네이버지도 스크립트를 불러오지 못했습니다."));
     s.onload = () => {
       if (!window.naver || !naver.maps) return reject(new Error("네이버지도 초기화 실패"));
-      try { resolve(build()); } catch (e) { reject(e); }
+      // 인증 실패는 지도 생성 "이후"에 비동기로 알려오므로, 지도 타일이 실제로 뜬 뒤에 완료 처리
+      try {
+        const api = build();
+        naver.maps.Event.once(api._map, "tilesloaded", () => resolve(api));
+      } catch (e) { reject(e); }
     };
     document.head.append(s);
   });
@@ -54,6 +61,7 @@ window.MapProviders.naver = function createNaverMap(el, opts) {
     }
 
     return {
+      _map: map,
       name: "naver",
       getCenter() { const c = map.getCenter(); return { lat: c.lat(), lng: c.lng() }; },
       setRadius(center, radius) { circle.setCenter(LL(center)); circle.setRadius(radius); },

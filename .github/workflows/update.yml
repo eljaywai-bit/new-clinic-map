@@ -2,7 +2,7 @@ name: 데이터 갱신 및 배포
 
 on:
   schedule:
-    - cron: "7 19 * * *" # 매일 한국시간 새벽 4시 17분
+    - cron: "7 19 * * *" # 매일 한국시간 새벽 4시 7분
   workflow_dispatch: {}   # Actions 탭에서 수동 실행
   push:
     branches: [main]
@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 180 # 심평원 서버가 느려도 최대 3시간에서 중단
+    timeout-minutes: 240 # 심평원 서버가 느려도 최대 4시간에서 중단
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

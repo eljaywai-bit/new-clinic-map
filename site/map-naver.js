@@ -24,7 +24,12 @@ window.MapProviders.naver = function createNaverMap(el, opts) {
   function build() {
     const N = naver.maps;
     const LL = (p) => new N.LatLng(p.lat, p.lng);
-    const map = new N.Map(el, {
+    // 네이버지도는 지도 상자에 position:relative 를 강제로 넣어서, 화면 꽉 채우기(absolute) 설정이
+    // 풀리고 높이가 0이 되어 지도가 안 보임 → 안쪽에 100% 크기 상자를 따로 만들어 넘김
+    const box = document.createElement("div");
+    box.style.cssText = "width:100%;height:100%;";
+    el.append(box);
+    const map = new N.Map(box, {
       center: LL(opts.center), zoom: 14,
       zoomControl: true,
       zoomControlOptions: { position: N.Position.RIGHT_CENTER, style: N.ZoomControlStyle.SMALL },

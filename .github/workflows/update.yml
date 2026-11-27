@@ -44,6 +44,9 @@ jobs:
             git push
           fi
 
+      - name: 파일 버전 꼬리표 (브라우저 캐시 방지)
+        run: sed -i "s/__V__/${GITHUB_SHA::7}-$(date +%s)/g" site/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
